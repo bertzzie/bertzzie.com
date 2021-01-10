@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -37,32 +38,31 @@ func initServer() {
 		Handler: router,
 	}
 
-	done := make(chan bool)
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-
 	go func() {
-		<- quit
-		log.Info("Shutting down server...")
-
-		grace := time.Duration(viper.GetInt("http.timeouts.grace")) * time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), grace)
-		defer cancel()
-
-		if err := server.Shutdown(ctx); err != nil {
-			log.Fatalf("Fail to shutdown server gracefully: %s", err)
+		log.Infof("Server ready to serve request at %s", address)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Fail to serve http: %s\n", err)
 		}
-
-		close(done)
 	}()
 
-	log.Infof("Server ready to serve request at %s", address)
-	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Fail to serve http: %s\n", err)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// we can safely blocks here because server is running in the background
+	// this means we will blocks here until we got either SIGINT or SIGTERM
+	<- quit
+
+	grace := time.Duration(viper.GetInt("http.timeouts.grace")) * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), grace)
+	defer cancel()
+
+	err := server.Shutdown(ctx)
+	if err != nil {
+		log.Fatalf("Server failed to shutdown gracefully: %s\n", err)
 	}
 
-	<- done
 	log.Infof("Shutting down server...")
+	os.Exit(0)
 }
 
 func initRouters() *mux.Router {
