@@ -38,7 +38,7 @@ func initServer() {
 	go func() {
 		log.Infof("Server ready to serve request at %s", address)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Fail to serve http: %s\n", err)
+			log.Fatalf("Fail to start http server: %s\n", err)
 		}
 	}()
 
@@ -84,7 +84,7 @@ func initLogOutput() io.Writer {
 		return initLogFile()
 	}
 
-	log.Warnf("Unknown log output %s. Setting up output as stdout", output)
+	log.Warnf("Unknown log output %s. Falling back to stdout", output)
 
 	return os.Stdout
 }
@@ -97,14 +97,14 @@ func initLogFile() io.Writer {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		err = os.MkdirAll(path, 0744)
 		if err != nil {
-			log.Errorf("Error creating log file directory %s: %s. Falling back to stdout", filename, err)
+			log.Warnf("Error creating log file directory %s: %s. Falling back to stdout", filename, err)
 			return os.Stdout
 		}
 	}
 
 	file, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
-		log.Errorf("Error opening log file %s: %s. Falling back to stdout", filename, err)
+		log.Warnf("Error opening log file %s: %s. Falling back to stdout", filename, err)
 		return os.Stdout
 	}
 
@@ -114,7 +114,8 @@ func initLogFile() io.Writer {
 func initLogLevel() log.Level {
 	level, err := log.ParseLevel(viper.GetString("logging.level"))
 	if err != nil {
-		log.Fatalf("Error setting up logging level: %s\n", err)
+		log.Warnf("Error setting up logging level: %s\n. Falling back to INFO", err)
+		return log.InfoLevel
 	}
 
 	return level
@@ -129,7 +130,7 @@ func initLogFormat() log.Formatter {
 		return &log.TextFormatter{}
 	}
 
-	log.Warnf("Unknown log format %s. Setting up log as JSON", format)
+	log.Warnf("Unknown log format %s. Falling back to JSON", format)
 
 	return &log.JSONFormatter{}
 }
