@@ -1,0 +1,13 @@
+logging:
+  file: "./logs/application.log"
+  format: "json"
+  level: INFO
+  output: "file"
+
+http:
+  address: "0.0.0.0:8080"
+  timeouts:
+    write: 15
+    read: 15
+    idle: 60
+    grace: 60
