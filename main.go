@@ -20,9 +20,6 @@ func main() {
 	initConfiguration()
 	initLogging()
 	initServer()
-
-	out := viper.GetString("test.configuration")
-	log.Info(out)
 }
 
 func initServer() {
